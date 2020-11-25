@@ -1,5 +1,6 @@
 #ifndef SJTU_MATRIX_HPP
 #define SJTU_MATRIX_HPP
+#define debug
 
 #include <cstddef>
 #include <initializer_list>
@@ -101,6 +102,7 @@ namespace sjtu
 		
 		Matrix &operator=(const Matrix &o)
 		{
+            if(this==&o)return *this;
             clear();
             matrix_m=o.matrix_m;
             matrix_n=o.matrix_n;
@@ -165,6 +167,14 @@ namespace sjtu
 		    matrix_n=il.size();
             auto it_row=il.begin();
             matrix_m=it_row->size();
+
+            while(it_row!=il.end())
+            {
+                if(it_row->size()!=matrix_m)throw std::invalid_argument("INVALID BUILD");
+                else it_row++;
+            }
+
+            it_row=il.begin();
             if(matrix_n<=0||matrix_m<=0)throw std::invalid_argument("BUILD FAILED");
             total_number=matrix_m*matrix_n;
             if(total_number==0)return;
@@ -380,13 +390,6 @@ namespace sjtu
 			
 			iterator &operator=(const iterator &) = default;
 
-			~iterator()
-            {
-			    n_it=0;
-			    m_it=0;
-                if(private_matrix&&now_matrix!= nullptr)delete []now_matrix;
-            }
-
 			friend iterator Matrix::begin();
 			friend iterator Matrix::end();
 			friend std::pair<iterator, iterator> Matrix::subMatrix(std::pair<size_t, size_t> l, std::pair<size_t, size_t> r);
@@ -394,54 +397,69 @@ namespace sjtu
 		private:
             size_type n_it;
             size_type m_it;
+            size_type n_begin=0;
+            size_type n_end=0;
+            size_type m_begin=0;
+            size_type m_end=0;
             Matrix* now_matrix;
-            bool private_matrix=false;
 			
 		public:
-            size_type id() const
+            inline size_type id() const
             {
-                return m_it+n_it*now_matrix->columnLength();
+                return m_it+n_it*m_size();
+            }
+            inline size_type m_size() const
+            {
+                return m_end-m_begin;
             }
 
 			difference_type operator-(const iterator &o)
 			{
-                if(now_matrix!=o.now_matrix)throw std::invalid_argument("NOT SAME MATRIX");
+                //if(now_matrix!=o.now_matrix)throw std::invalid_argument("NOT SAME MATRIX");
 				return this->id()-o.id();
 			}
 			
 			iterator &operator+=(difference_type offset)
 			{
-                if(n_it*now_matrix->columnLength()+m_it+offset>now_matrix->columnLength()*now_matrix->rowLength())throw std::invalid_argument("TOO LARGE OFFSET");
-				n_it+=(m_it+offset)/now_matrix->columnLength();
-				m_it=(m_it+offset)%now_matrix->columnLength();
+                //if(n_it*now_matrix->columnLength()+m_it+offset>now_matrix->columnLength()*now_matrix->rowLength())throw std::invalid_argument("TOO LARGE OFFSET");
+				n_it+=(m_it+offset)/m_size();
+				m_it=(m_it+offset)%m_size();
                 return *this;
 			}
 			
 			iterator operator+(difference_type offset) const
 			{
-                if(n_it*now_matrix->columnLength()+m_it+offset>now_matrix->columnLength()*now_matrix->rowLength())throw std::invalid_argument("TOO LARGE OFFSET");
+                //if(n_it*now_matrix->columnLength()+m_it+offset>now_matrix->columnLength()*now_matrix->rowLength())throw std::invalid_argument("TOO LARGE OFFSET");
                 iterator tem_it;
                 tem_it.now_matrix=now_matrix;
-                tem_it.n_it=(m_it+offset)/now_matrix->columnLength();
-                tem_it.m_it=(m_it+offset)%now_matrix->columnLength();
+                tem_it.m_begin=m_begin;
+                tem_it.m_end=m_end;
+                tem_it.n_begin=n_begin;
+                tem_it.n_end=n_end;
+                tem_it.n_it=(m_it+offset)/m_size()+n_it;
+                tem_it.m_it=(m_it+offset)%m_size();
                 return tem_it;
 			}
 			
 			iterator &operator-=(difference_type offset)
 			{
-                if(n_it*now_matrix->columnLength()+m_it-offset<0)throw std::invalid_argument("TOO LARGE OFFSET");
-                n_it=(n_it*now_matrix->columnLength()+m_it-offset)/now_matrix->columnLength();
-                m_it=(n_it*now_matrix->columnLength()+m_it-offset)%now_matrix->columnLength();
+                //if(n_it*now_matrix->columnLength()+m_it-offset<0)throw std::invalid_argument("TOO LARGE OFFSET");
+                n_it=(n_it*m_size()+m_it-offset)/m_size();
+                m_it=(n_it*m_size()+m_it-offset)%m_size();
                 return *this;
 			}
 			
 			iterator operator-(difference_type offset) const
 			{
-                if(n_it*now_matrix->columnLength()+m_it-offset<0)throw std::invalid_argument("TOO LARGE OFFSET");
+                //if(n_it*now_matrix->columnLength()+m_it-offset<0)throw std::invalid_argument("TOO LARGE OFFSET");
                 iterator tem_it;
                 tem_it.now_matrix=now_matrix;
-                tem_it.n_it=(n_it*now_matrix->columnLength()+m_it-offset)/now_matrix->columnLength();
-                tem_it.m_it=(n_it*now_matrix->columnLength()+m_it-offset)%now_matrix->columnLength();
+                tem_it.m_begin=m_begin;
+                tem_it.m_end=m_end;
+                tem_it.n_begin=n_begin;
+                tem_it.n_end=n_end;
+                tem_it.n_it=(n_it*m_size()+m_it-offset)/m_size();
+                tem_it.m_it=(n_it*m_size()+m_it-offset)%m_size();
                 return tem_it;
 			}
 			
@@ -475,17 +493,17 @@ namespace sjtu
 			
 			reference operator*() const
 			{
-			    return (*now_matrix)(n_it,m_it);
+			    return (*now_matrix)(n_begin+n_it,m_begin+m_it);
 			}
 			
 			pointer operator->() const
 			{
-                return &((*now_matrix)(n_it,m_it));
+                return &((*now_matrix)(n_begin+n_it,m_begin+m_it));
 			}
 			
 			bool operator==(const iterator &o) const
 			{
-                if(n_it!=o.n_it||m_it!=o.m_it||now_matrix!=o.now_matrix)return false;
+                if(n_it!=o.n_it||m_it!=o.m_it||now_matrix!=o.now_matrix||n_begin!=o.n_begin||m_begin!=o.m_begin||n_end!=o.n_end||m_end!=o.m_end)return false;
                 else return true;
 			}
 			
@@ -499,6 +517,10 @@ namespace sjtu
 		{
 			iterator tem_it;
             tem_it.now_matrix=this;
+            tem_it.m_begin=0;
+            tem_it.m_end=matrix_m;
+            tem_it.n_begin=0;
+            tem_it.n_end=matrix_n;
             tem_it.m_it=0;
             tem_it.n_it=0;
             return tem_it;
@@ -508,8 +530,12 @@ namespace sjtu
 		{
             iterator tem_it;
             tem_it.now_matrix=this;
-            tem_it.m_it=matrix_m-1;
-            tem_it.n_it=matrix_n-1;
+            tem_it.m_begin=0;
+            tem_it.m_end=matrix_m;
+            tem_it.n_begin=0;
+            tem_it.n_end=matrix_n;
+            tem_it.m_it=0;
+            tem_it.n_it=matrix_n;
             return tem_it;
 		}
 		
@@ -520,23 +546,27 @@ namespace sjtu
 			size_t m_length;
 			n_length=r.first-l.first;
 			m_length=r.second-l.second;
-			if(n_length<=0||m_length<=0||n_length>matrix_n||m_length>matrix_m)throw std::invalid_argument("INVALID POS");
+			//if(n_length<=0||m_length<=0||n_length>matrix_n||m_length>matrix_m)throw std::invalid_argument("INVALID POS");
             std::pair<iterator, iterator> pair_return;
 			iterator it_begin;
 			iterator it_end;
+
 			it_begin.m_it=0;
 			it_begin.n_it=0;
-			it_begin.private_matrix=true;
-			it_end.n_it=n_length-1;
-			it_end.m_it=m_length-1;
-			it_end.private_matrix=true;
-			it_begin.now_matrix=new Matrix(n_length,m_length);
-			it_end.now_matrix=new Matrix(n_length,m_length);
-            for(size_t i=0;i<it_begin.now_matrix->total_number;i++)
-            {
-                it_begin.now_matrix->head[i]=(*this)(l.first+i/m_length,l.second+i%m_length);
-                it_end.now_matrix->head[i]=(*this)(l.first+i/m_length,l.second+i%m_length);
-            }
+			it_begin.n_begin=l.first;
+			it_begin.n_end=r.first;
+			it_begin.m_begin=l.second;
+			it_begin.m_end=r.second;
+			it_begin.now_matrix=this;
+
+            it_end.n_it=n_length;
+            it_end.m_it=0;
+            it_end.n_begin=l.first;
+            it_end.n_end=r.first;
+            it_end.m_begin=l.second;
+            it_end.m_end=r.second;
+            it_end.now_matrix=this;
+
             pair_return.first=it_begin;
             pair_return.second=it_end;
 			return pair_return;
