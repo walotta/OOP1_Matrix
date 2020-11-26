@@ -3,4 +3,4 @@ project(OOP1_Matrix)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(OOP1_Matrix BasicTest.cpp matrix.hpp testint.hpp)
+add_executable(OOP1_Matrix AdvanceTest.cpp matrix.hpp testint.hpp)

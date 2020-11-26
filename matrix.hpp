@@ -145,13 +145,17 @@ namespace sjtu
 		
 		Matrix &operator=(Matrix &&o) noexcept
 		{
-			clear();
-            matrix_n=o.matrix_n;
-            matrix_m=o.matrix_m;
-            total_number=o.total_number;
+            clear();
+            matrix_n=o.rowLength();
+            matrix_m=o.columnLength();
+            total_number=matrix_n*matrix_m;
             if(head!= nullptr)delete []head;
-            head=o.head;
-            o.head= nullptr;
+            if(total_number==0)return *this;
+            head=new T[total_number];
+            for(size_t i=0;i<total_number;i++)
+            {
+                head[i]=o(i/o.columnLength(),i%o.columnLength());
+            }
             return *this;
 		}
 		
